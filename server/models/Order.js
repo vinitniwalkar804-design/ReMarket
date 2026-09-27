@@ -4,7 +4,7 @@ const orderSchema = new mongoose.Schema(
   {
     buyerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true, index: true },
     productTitle: { type: String, default: "" },
     quantity: { type: Number, default: 1 },
     listedPrice: { type: Number, required: true },

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Store, MessageSquare, Tag, TrendingUp, Percent, ShoppingCart, Layers,
+  Store, MessageSquare, Tag, TrendingUp, Percent, ShoppingCart, Layers, Star,
 } from "lucide-react";
 import api from "../../services/api.js";
 import { timeAgo, formatNumber } from "../../utils/format.js";

@@ -29,5 +29,22 @@ behaviorEventSchema.index({ userId: 1, eventType: 1 });
 behaviorEventSchema.index({ userId: 1, timestamp: -1 });
 behaviorEventSchema.index({ userId: 1, sessionId: 1 });
 
+/**
+ * Product-scoped analytics, added for the admin product-intelligence workspace.
+ *
+ * The three indexes above all lead with `userId`, which is right for the
+ * per-customer feature builder and useless for the questions the workspace asks,
+ * because those are always "what happened to *this* listing" and "what else did
+ * *these* customers look at". Without a leading `productId` both are collection
+ * scans over the whole event log, and the event log is the largest collection in
+ * the database and the only one that grows without bound.
+ *
+ * `{ productId, eventType }` serves the per-listing signal aggregation.
+ * `{ productId, userId }` serves the co-interest pass, which filters one
+ * product's customers back out across every other listing.
+ */
+behaviorEventSchema.index({ productId: 1, eventType: 1 });
+behaviorEventSchema.index({ productId: 1, userId: 1 });
+
 const BehaviorEvent = mongoose.model("BehaviorEvent", behaviorEventSchema);
 export default BehaviorEvent;

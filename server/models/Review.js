@@ -13,5 +13,13 @@ const reviewSchema = new mongoose.Schema(
 
 reviewSchema.index({ userId: 1, productId: 1 }, { unique: true });
 
+/**
+ * The seller trust panel aggregates a seller's review record across every listing
+ * they have ever sold, and `sellerId` carried no index, so that was a full scan
+ * of the largest review collection in the database. `productId` is already
+ * indexed on the field itself for the per-listing rating breakdown.
+ */
+reviewSchema.index({ sellerId: 1 });
+
 const Review = mongoose.model("Review", reviewSchema);
 export default Review;

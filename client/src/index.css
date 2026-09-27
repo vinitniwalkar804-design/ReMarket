@@ -403,11 +403,16 @@
   }
 
   /* ================= TABS ================= */
+  /* The list scrolls rather than widening the page. A tab row that cannot fit a
+     phone is the most common cause of a sideways-scrolling document, and that
+     is worse than a small horizontal scroll inside the control: it hides the
+     edge of the page. `.tab` refuses to shrink so labels stay readable while the
+     row scrolls. */
   .tab-list {
-    @apply flex items-center gap-1 p-1 bg-sunken rounded-xl border border-line;
+    @apply flex items-center gap-1 p-1 bg-sunken rounded-xl border border-line overflow-x-auto;
   }
   .tab {
-    @apply flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-semibold text-muted
+    @apply flex shrink-0 items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-semibold text-muted
            transition-all duration-150 hover:text-ink-900;
   }
   .tab-active {
@@ -563,6 +568,30 @@
       linear-gradient(to bottom, rgba(12, 17, 34, 0.045) 1px, transparent 1px);
     background-size: 44px 44px;
   }
+}
+
+/* ==========================================================================
+   Chart legend and pie label text
+   ==========================================================================
+   Recharts paints each legend item's text with that series' own colour, which
+   overrides the wrapper colour set in `chartLegend`. Several palette entries
+   (amber, teal, coral) sit between 2:1 and 4:1 against white, so a series name
+   rendered in its own colour fails WCAG AA for small text — "Revenue" measured
+   2.12:1 at 13px.
+
+   Pie slice labels are worse: they inherit the fill of the wedge they annotate,
+   so the category name is drawn in exactly the colour of its own slice. "Accessories"
+   measured #EE9E1B text beside an #EE9E1B wedge.
+
+   The colour swatch beside the label already carries the series identity, so
+   forcing the text to a compliant ink keeps the chart readable and still ties
+   each label to its slice. One rule covers every chart that spreads
+   `chartLegend`.
+   ========================================================================== */
+.recharts-legend-item-text,
+.recharts-pie-label-text {
+  color: #3d4a6b !important;
+  fill: #3d4a6b !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

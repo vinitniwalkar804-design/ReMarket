@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   RefreshCw, Users, Package, ShoppingCart, TrendingUp, Repeat, ShieldCheck, Target,
-  ArrowUpRight, FlaskConical, Network, Brain, Filter, Loader2, LayoutDashboard, CheckCircle2,
+  ArrowUpRight, FlaskConical, Network, Brain, LayoutDashboard, CheckCircle2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -10,6 +10,7 @@ import {
 import api from "../../services/api.js";
 import { formatINR, formatNumber } from "../../utils/format.js";
 import { C, chartAxis, chartGrid, chartTooltip, chartLegend } from "../../utils/theme.js";
+import UniqueCustomerFunnel from "./intel/UniqueCustomerFunnel.jsx";
 
 const KPI_TONES = [
   "from-brand-500 to-brand-700",
@@ -25,7 +26,7 @@ const KPI_TONES = [
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [trend, setTrend] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
+  const [attraction, setAttraction] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mlRunning, setMlRunning] = useState(false);
   const [mlResult, setMlResult] = useState(null);
@@ -34,15 +35,19 @@ export default function AdminDashboard() {
   const load = async () => {
     setLoading(true);
     try {
-      const [sRes, tRes, aRes, mlRes] = await Promise.all([
+      // The attraction report replaces the old /admin/analytics call here, which
+      // existed only to feed the event-count funnel. It answers a different
+      // question: it counts people, while behaviorSummary counts events. Merging
+      // them would be how the old funnel ended up labelling clicks as customers.
+      const [sRes, tRes, atRes, mlRes] = await Promise.all([
         api.get("/admin/stats"),
         api.get("/admin/trends?days=14"),
-        api.get("/admin/analytics"),
+        api.get("/admin/attraction?limit=6").catch(() => ({ data: null })),
         api.get("/ml/results").catch(() => ({ data: { hasResults: false } })),
       ]);
       setStats(sRes.data);
       setTrend(tRes.data.trend || []);
-      setAnalytics(aRes.data);
+      setAttraction(atRes.data);
       setMlResult(mlRes.data);
     } catch {}
     setLoading(false);
@@ -90,25 +95,13 @@ export default function AdminDashboard() {
 
   const latestRun = mlResult?.hasResults ? mlResult.results?.[0] : null;
 
-  const summaryOf = (list) => {
-    const m = {};
-    (list || []).forEach((x) => {
-      m[x.key] = x.value;
-    });
-    return m;
-  };
-  const bs = summaryOf(analytics?.behaviorSummary);
-  const funnelSteps = [
-    { label: "Searches", value: bs.Searches || 0 },
-    { label: "Product views", value: bs["Product Views"] || 0 },
-    { label: "Cart adds", value: bs["Cart Adds"] || 0 },
-    { label: "Checkouts", value: bs["Checkout Starts"] || 0 },
-    { label: "Purchases", value: bs.Purchases || 0 },
-  ];
-  const funnelRate = (idx) =>
-    funnelSteps[idx - 1]?.value > 0
-      ? ((funnelSteps[idx].value / funnelSteps[idx - 1].value) * 100).toFixed(1)
-      : "—";
+  /* Headline figures in people, not events. `conversionRate` from /admin/stats is
+     an order-per-view ratio over denormalised counters; the number worth leading
+     with is what share of the *attracted customers* went on to buy, which the
+     attraction report already computed from real orders. */
+  const attracted = attraction?.totals?.customers ?? null;
+  const buyers = attraction?.totals?.buyers ?? null;
+  const closingRate = attraction?.funnel?.steps?.at(-1)?.ofInterested ?? null;
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -238,52 +231,69 @@ export default function AdminDashboard() {
             </div>
           </section>
 
+          {/* ---------- demand headline ---------- */}
+          {/* The KPI row above counts registered accounts and stored counters. This
+              row answers the question an operator actually opens the dashboard
+              with: how many real people did the marketplace reach, and how many of
+              them bought. Each tile links to the report that proves it. */}
+          {attraction?.totals && (
+            <section className="panel">
+              <div className="panel-head">
+                <div className="flex items-center gap-2.5">
+                  <Users size={16} className="text-primary" />
+                  <div>
+                    <h2 className="panel-title">Demand, in people</h2>
+                    <p className="panel-sub">Distinct customers reached, from recorded behavior and real orders</p>
+                  </div>
+                </div>
+                <Link to="/admin/product-intelligence" className="btn-secondary btn-sm flex-none">
+                  Full report
+                </Link>
+              </div>
+              <div className="panel-body grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { label: "Customers attracted", value: formatNumber(attracted), to: "/admin/product-intelligence" },
+                  { label: "Customers who bought", value: formatNumber(buyers), to: "/admin/sales-insights" },
+                  { label: "Attracted to purchase", value: closingRate === null ? "n/a" : `${closingRate}%`, to: "/admin/product-intelligence" },
+                  { label: "Categories with interest", value: formatNumber(attraction.totals.categories), to: "/admin/analytics" },
+                ].map((t) => (
+                  <Link
+                    key={t.label}
+                    to={t.to}
+                    className="sunken-panel p-4 hover:bg-primary-soft hover:border-brand-200 transition-colors group"
+                  >
+                    <p className="text-2xs font-bold uppercase tracking-[0.1em] text-muted">{t.label}</p>
+                    <p className="metric mt-1.5 group-hover:text-primary transition-colors">{t.value}</p>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* ---------- funnel health ---------- */}
-          <section className="panel">
-            <div className="panel-head">
-              <div className="flex items-center gap-2.5">
-                <Filter size={16} className="text-primary" />
-                <div>
-                  <h2 className="panel-title">Funnel health</h2>
-                  <p className="panel-sub">Where attention turns into orders</p>
+          {/* Was previously an event-count funnel labelled "% of previous". It now
+              counts distinct customers and measures each stage against everyone
+              attracted, which is the comparison the data supports. */}
+          {attraction?.funnel ? (
+            <UniqueCustomerFunnel funnel={attraction.funnel} />
+          ) : (
+            <section className="panel">
+              <div className="panel-head">
+                <div className="flex items-center gap-2.5">
+                  <TrendingUp size={16} className="text-primary" />
+                  <div>
+                    <h2 className="panel-title">Funnel health</h2>
+                    <p className="panel-sub">Where attention turns into orders</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="panel-body">
-              <div className="flex flex-col xl:flex-row items-stretch gap-4">
-                {funnelSteps.map((step, i) => {
-                  const pct = i === 0 ? 100 : Number(funnelRate(i));
-                  const width = Math.max(4, pct === Infinity || isNaN(pct) ? 0 : pct);
-                  return (
-                    <div key={step.label} className="flex-1 flex items-center gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-baseline justify-between gap-2 mb-1.5">
-                          <span className="text-2xs font-bold uppercase tracking-[0.08em] text-muted truncate">
-                            {step.label}
-                          </span>
-                          <span className="text-sm font-extrabold text-ink-900 tabular">
-                            {formatNumber(step.value)}
-                          </span>
-                        </div>
-                        <div className="h-2.5 bg-sunken rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all duration-500"
-                            style={{ width: i === 0 ? "100%" : `${width}%` }}
-                          />
-                        </div>
-                        <div className="text-2xs text-muted-soft mt-1 tabular">
-                          {i === 0 ? "entry" : `${pct}% of previous`}
-                        </div>
-                      </div>
-                      {i < funnelSteps.length - 1 && (
-                        <ArrowUpRight size={14} className="text-line-strong flex-none" />
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="panel-body">
+                <p className="text-sm text-muted py-6 text-center">
+                  The customer funnel could not be loaded. Counters above are unaffected.
+                </p>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* ---------- latest ML run ---------- */}
           {latestRun && (

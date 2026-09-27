@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Brain, Search, Eye, Clock, Heart, Gift, Tags, ShoppingBag, Wallet,
-  Hexagon, UserCheck, Activity, Package,
+  Hexagon, UserCheck, Activity, Package, PieChart,
 } from "lucide-react";
 import api from "../../services/api.js";
 import { fallbackFor } from "../../utils/images.js";
 import { formatINR } from "../../utils/format.js";
 import { orderTone } from "../../utils/theme.js";
+import CustomerAttractionChart from "./CustomerAttractionChart.jsx";
 
 export default function AdminCustomerDetail() {
   const { id } = useParams();
@@ -69,6 +70,9 @@ export default function AdminCustomerDetail() {
     : [];
   const topSearches = searchBehavior ? searchBehavior.slice(0, 4).map((s) => s._id) : [];
   const topCategories = viewedCategories ? viewedCategories.slice(0, 4).map((c) => c._id) : [];
+  // The attraction panel names the customer in its own heading, so the heading
+  // reads as a sentence instead of repeating the profile name beside it.
+  const firstName = (user.name || "this customer").trim().split(" ")[0];
 
   const stats = [
     { icon: ShoppingBag, label: "Purchases", value: purchaseCount ?? 0 },
@@ -214,6 +218,22 @@ export default function AdminCustomerDetail() {
       </section>
 
       <div className="grid lg:grid-cols-2 gap-5">
+        {/* ---------- attraction ---------- */}
+        <section className="panel lg:col-span-2">
+          <div className="panel-head">
+            <div>
+              <h2 className="panel-title flex items-center gap-2">
+                <PieChart size={16} className="text-primary" /> What draws {firstName} in
+              </h2>
+              <p className="panel-sub">This customer&rsquo;s category attraction, from their own behaviour</p>
+            </div>
+            <span className="badge-accent">Customer attraction</span>
+          </div>
+          <div className="panel-body">
+            <CustomerAttractionChart customerId={id} />
+          </div>
+        </section>
+
         {/* ---------- features ---------- */}
         <section className="panel">
           <div className="panel-head">

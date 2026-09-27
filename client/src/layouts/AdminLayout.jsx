@@ -2,41 +2,51 @@ import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, BarChart3, Brain, Network, Route,
-  Settings, FlaskConical, LogOut, Menu, X, ChevronRight, Sparkles, Store, Lightbulb, ShieldCheck,
-  Activity,
+  Settings, FlaskConical, LogOut, Menu, X, ChevronRight, ChevronDown, Sparkles, Store,
+  Lightbulb, ShieldCheck, Activity, TrendingUp, Wrench,
 } from "lucide-react";
 import { useState } from "react";
 
+/**
+ * The primary navigation, organised by the question a page answers rather than
+ * by which database table backs it. "Customer Intelligence" is about people,
+ * "Marketplace Intelligence" is about supply and demand, "Catalog & Sales" is
+ * day-to-day record keeping.
+ */
 const GROUPS = [
   {
     label: "Overview",
     items: [
       { to: "/admin", icon: LayoutDashboard, label: "Dashboard", match: ["/admin", "/admin/dashboard"], exact: true },
-      { to: "/admin/journey", icon: Route, label: "Journey", match: ["/admin/journey"] },
     ],
   },
   {
     label: "Customer Intelligence",
     items: [
       { to: "/admin/customers", icon: Users, label: "Customers", match: ["/admin/customers", "/admin/customer/"] },
-      { to: "/admin/analytics", icon: BarChart3, label: "Behavior", match: ["/admin/analytics"] },
       { to: "/admin/personas", icon: Brain, label: "Personas", match: ["/admin/personas"] },
+      { to: "/admin/analytics", icon: BarChart3, label: "Behavior Analytics", match: ["/admin/analytics"] },
+      {
+        to: "/admin/customer-journeys",
+        icon: Route,
+        label: "Customer Journeys",
+        match: ["/admin/customer-journeys", "/admin/journey"],
+      },
+    ],
+  },
+  {
+    label: "Marketplace Intelligence",
+    items: [
+      { to: "/admin/product-intelligence", icon: Lightbulb, label: "Product Intelligence", match: ["/admin/product-intelligence"] },
+      { to: "/admin/seller-intelligence", icon: Store, label: "Seller Intelligence", match: ["/admin/seller-intelligence"] },
+      { to: "/admin/sales-insights", icon: TrendingUp, label: "Sales Insights", match: ["/admin/sales-insights"] },
     ],
   },
   {
     label: "Catalog & Sales",
     items: [
-      { to: "/admin/product-intelligence", icon: Lightbulb, label: "Product Intelligence", match: ["/admin/product-intelligence"] },
+      { to: "/admin/products", icon: Package, label: "Products", match: ["/admin/products"] },
       { to: "/admin/orders", icon: ShoppingCart, label: "Orders", match: ["/admin/orders"] },
-    ],
-  },
-  {
-    label: "Marketplace",
-    items: [
-      { to: "/admin/listings", icon: Package, label: "Listings", match: ["/admin/listings", "/admin/products"] },
-      { to: "/admin/sellers", icon: Store, label: "Sellers", match: ["/admin/sellers", "/admin/marketplace"] },
-      { to: "/admin/moderation/reports", icon: ShieldCheck, label: "Moderation", match: ["/admin/moderation"] },
-      { to: "/admin/marketplace-health", icon: Activity, label: "Trust & Flow", match: ["/admin/marketplace-health"] },
     ],
   },
   {
@@ -46,16 +56,26 @@ const GROUPS = [
 ];
 
 /**
- * Model tooling, deliberately kept out of the product navigation above.
+ * Operational and diagnostic tools, collapsed into a disclosure at the bottom of
+ * the rail instead of sitting in the main navigation.
  *
- * The clustering and ML labs are how an operator inspects and re-runs the
- * segmentation pipeline. They are the *mechanism* behind Personas and Behavior,
- * not a destination an admin is meant to work in day to day, so promoting them
- * to the same level as Customers or Orders made the admin area look like a
- * data-science workbench. They stay fully reachable - routes, pages and
- * features are untouched - just demoted to a subdued section at the bottom.
+ * These pages are all fully functional and reachable - none of them was deleted,
+ * and the Cluster Lab and ML Lab remain the mechanism behind Personas. What
+ * changed is their weight: listed at the same level as Customers or Orders they
+ * made the admin area read as a data-science workbench rather than an
+ * operations console.
+ *
+ * The disclosure is closed by default rather than hidden outright. An earlier
+ * revision dropped these links from the rail completely, which left the labs
+ * reachable only by typing a URL - technically preserved, practically lost. A
+ * collapsed "Advanced tools" group keeps the main rail to the eleven things an
+ * admin works with daily while still making everything one click away.
  */
-const PLATFORM_TOOLS = [
+const ADVANCED_TOOLS = [
+  { to: "/admin/sellers", icon: Store, label: "Seller directory", match: ["/admin/sellers"] },
+  { to: "/admin/listings", icon: Package, label: "Listings", match: ["/admin/listings"] },
+  { to: "/admin/moderation/reports", icon: ShieldCheck, label: "Moderation", match: ["/admin/moderation"] },
+  { to: "/admin/marketplace-health", icon: Activity, label: "Trust & Flow", match: ["/admin/marketplace-health"] },
   { to: "/admin/clusters", icon: Network, label: "Cluster Lab", match: ["/admin/clusters"] },
   { to: "/admin/ml-lab", icon: FlaskConical, label: "ML Lab", match: ["/admin/ml-lab"] },
 ];
@@ -63,21 +83,24 @@ const PLATFORM_TOOLS = [
 const TITLES = {
   "/admin": "Dashboard",
   "/admin/dashboard": "Dashboard",
-  "/admin/journey": "Customer Journey",
   "/admin/customers": "Customers",
-  "/admin/analytics": "Behavior Intelligence",
+  "/admin/analytics": "Behavior Analytics",
   "/admin/personas": "Personas",
-  "/admin/clusters": "Cluster Lab",
-  "/admin/ml-lab": "ML Lab",
-  "/admin/products": "Listings",
-  "/admin/listings": "Listings",
+  "/admin/customer-journeys": "Customer Journeys",
+  "/admin/journey": "Customer Journeys",
   "/admin/product-intelligence": "Product Intelligence",
+  "/admin/seller-intelligence": "Seller Intelligence",
+  "/admin/sales-insights": "Sales Insights",
+  "/admin/products": "Products",
   "/admin/orders": "Orders",
-  "/admin/sellers": "Sellers",
-  "/admin/marketplace": "Sellers",
+  "/admin/settings": "Settings",
+  // Reachable, but no longer part of the primary navigation.
+  "/admin/sellers": "Seller Directory",
+  "/admin/listings": "Listings",
   "/admin/marketplace-health": "Trust & Order Flow",
   "/admin/moderation/reports": "Moderation",
-  "/admin/settings": "Settings",
+  "/admin/clusters": "Cluster Lab",
+  "/admin/ml-lab": "ML Lab",
 };
 
 const isCustomerDetail = (pathname) =>
@@ -86,6 +109,7 @@ const isCustomerDetail = (pathname) =>
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -169,32 +193,45 @@ export default function AdminLayout() {
             </div>
           ))}
 
-          {/* Kept out of the product navigation above, but always rendered: gating
-              this on "already inside a lab" made the two tools unreachable by
-              navigation from every other admin page, so the only way in was
-              typing the URL. Separate group + divider + dimmed text is what
-              keeps them subordinate; hiding them is not. */}
+          {/* Subordinate tools, collapsed by default so the eleven primary
+              destinations carry the rail. Every one of these routes still
+              renders a full page - see ADVANCED_TOOLS above. */}
           <div className="pt-4 border-t border-white/[0.07]">
-            <p className="nav-rail-group">Model tooling</p>
-            <div className="space-y-0.5">
-              {PLATFORM_TOOLS.map((n) => {
-                const active = isActive(n);
-                return (
-                  <Link
-                    key={n.to}
-                    to={n.to}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`nav-rail-item text-white/55 hover:text-white/80 ${active ? "nav-rail-item-active !text-brand-300" : ""}`}
-                  >
-                    {active && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary" />
-                    )}
-                    <n.icon size={16} className="flex-none" />
-                    <span className="truncate">{n.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
+            <button
+              type="button"
+              onClick={() => setToolsOpen((v) => !v)}
+              aria-expanded={toolsOpen}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-white/45
+                hover:text-white/75 transition-colors"
+            >
+              <Wrench size={13} className="flex-none" />
+              <span className="nav-rail-group !mb-0 !pb-0">Advanced tools</span>
+              <ChevronDown
+                size={13}
+                className={`ml-auto flex-none transition-transform duration-200 ${toolsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {toolsOpen && (
+              <div className="space-y-0.5 mt-1.5">
+                {ADVANCED_TOOLS.map((n) => {
+                  const active = isActive(n);
+                  return (
+                    <Link
+                      key={n.to}
+                      to={n.to}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`nav-rail-item text-white/55 hover:text-white/80 ${active ? "nav-rail-item-active !text-brand-300" : ""}`}
+                    >
+                      {active && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary" />
+                      )}
+                      <n.icon size={16} className="flex-none" />
+                      <span className="truncate">{n.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </nav>
 

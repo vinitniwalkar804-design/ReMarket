@@ -133,7 +133,13 @@ const normaliseCategory = (value) => String(value || "").trim().toLowerCase();
  * one, and actually buying is strongest. Counting views alone would make every
  * customer look like a browser of everything.
  */
-const CATEGORY_WEIGHTS = {
+/**
+ * Exported so the admin customer-attraction chart scores a customer with the
+ * same numbers the ML pipeline does, rather than a second, drifting table.
+ * Adding to this object changes the feature matrix, so it stays as it is; the
+ * chart's own extra signal weights live in services/customerAttraction.js.
+ */
+export const CATEGORY_WEIGHTS = {
   PRODUCT_VIEW: 1,
   CATEGORY_VIEW: 2,
   PRODUCT_COMPARE: 3,

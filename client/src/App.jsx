@@ -39,6 +39,9 @@ const AdminJourney = lazy(() => import("./pages/admin/AdminJourney.jsx"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.jsx"));
 const AdminProductIntel = lazy(() => import("./pages/admin/AdminProductIntel.jsx"));
 const AdminMarketplace = lazy(() => import("./pages/admin/AdminMarketplace.jsx"));
+const AdminProducts = lazy(() => import("./pages/admin/AdminProducts.jsx"));
+const SellerIntelligence = lazy(() => import("./pages/admin/SellerIntelligence.jsx"));
+const SalesInsights = lazy(() => import("./pages/admin/SalesInsights.jsx"));
 import LoadingScreen from "./components/LoadingScreen.jsx";
 
 const ProtectedRoute = ({ children }) => {
@@ -107,30 +110,54 @@ export default function App() {
 
           {/* Admin shell. `path="/admin"` is required so that "/admin" and
               "/admin/" resolve to the index route instead of falling through
-              to the router's no-match branch. AdminLayout renders <Outlet />. */}
+              to the router's no-match branch. AdminLayout renders <Outlet />.
+
+              Route order below mirrors the sidebar: Overview, Customer
+              Intelligence, Marketplace Intelligence, Catalog & Sales, Config.
+              Each of those is a real page. The legacy destinations at the
+              bottom are still fully functional and are deliberately *not*
+              redirects - they are reachable from the "Advanced tools"
+              disclosure in the rail, and any bookmark pointing at them keeps
+              working. */}
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+            {/* Overview */}
             <Route index element={<AdminDashboard />} />
             <Route path="dashboard" element={<AdminDashboard />} />
+
+            {/* Customer Intelligence */}
             <Route path="customers" element={<AdminCustomers />} />
             <Route path="customers/:id" element={<AdminCustomerDetail />} />
             {/* legacy singular path kept so existing bookmarks still resolve */}
             <Route path="customer/:id" element={<AdminCustomerDetail />} />
-            <Route path="listings" element={<AdminListings />} />
-            {/* legacy singular path kept so existing bookmarks still resolve */}
-            <Route path="products" element={<Navigate to="/admin/listings" replace />} />
-            <Route path="product-intelligence" element={<AdminProductIntel />} />
-            <Route path="orders" element={<AdminOrders />} />
+            <Route path="personas" element={<AdminPersonas />} />
             <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="customer-journeys" element={<AdminJourney />} />
+            {/* legacy alias: the page was renamed, the path was not broken */}
             <Route path="journey" element={<AdminJourney />} />
+
+            {/* Marketplace Intelligence */}
+            <Route path="product-intelligence" element={<AdminProductIntel />} />
+            <Route path="seller-intelligence" element={<SellerIntelligence />} />
+            <Route path="sales-insights" element={<SalesInsights />} />
+
+            {/* Catalog & Sales */}
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="orders" element={<AdminOrders />} />
+
+            {/* Config */}
+            <Route path="settings" element={<AdminSettings />} />
+
+            {/* Still functional, no longer part of the primary navigation.
+                These render the original pages rather than redirecting, so no
+                capability was traded away for a tidier menu. */}
+            <Route path="listings" element={<AdminListings />} />
             <Route path="sellers" element={<AdminSellers />} />
             <Route path="marketplace-health" element={<AdminMarketplace />} />
-            {/* old combined page is now split: sellers live in /admin/sellers */}
-            <Route path="marketplace" element={<Navigate to="/admin/sellers" replace />} />
             <Route path="moderation/reports" element={<AdminModeration />} />
-            <Route path="personas" element={<AdminPersonas />} />
             <Route path="clusters" element={<AdminClusters />} />
             <Route path="ml-lab" element={<AdminMLLab />} />
-            <Route path="settings" element={<AdminSettings />} />
+            {/* the old combined page split: sellers moved to the seller pages */}
+            <Route path="marketplace" element={<Navigate to="/admin/seller-intelligence" replace />} />
             {/* unknown admin sub-path -> dashboard instead of a blank page */}
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>

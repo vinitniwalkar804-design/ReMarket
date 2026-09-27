@@ -17,5 +17,18 @@ const offerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/**
+ * Negotiation analytics need to reach a listing's offers and a seller's whole
+ * offer history. `Offer` had no indexes at all, so both were collection scans -
+ * invisible at a few hundred documents, painful once negotiations become the
+ * main way a marketplace transacts.
+ *
+ * `{ productId, status }` is the listing-level negotiation breakdown, which
+ * groups by status after matching on product. `sellerId` serves the seller trust
+ * panel, which aggregates across every listing a seller has ever negotiated on.
+ */
+offerSchema.index({ productId: 1, status: 1 });
+offerSchema.index({ sellerId: 1 });
+
 const Offer = mongoose.model("Offer", offerSchema);
 export default Offer;

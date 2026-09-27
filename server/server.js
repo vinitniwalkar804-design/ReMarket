@@ -74,6 +74,29 @@ app.use("/api/uploads", uploadRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   console.log(`[Server] Running on port ${config.port}`);
+});
+
+/**
+ * A listen failure with no "error" listener is an *unhandled* 'error' event, so
+ * the process dies on an uncaught exception and prints a raw net stack. That is
+ * what a "stopped and restarted" run hits whenever the previous backend is still
+ * alive: the new process cannot bind, crashes, and the stale process quietly
+ * keeps serving the port - so the app the user is looking at is the old one, with
+ * whatever routes it happened to have when it started. Ending up on an old
+ * backend is how a route that exists on disk 404s in the browser.
+ *
+ * So report it as what it is and stop, instead of crashing on a stack trace.
+ */
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `[Server] Port ${config.port} is already in use. Another backend is still running - ` +
+        `stop it (or the old dev process) and start again, otherwise the stale one keeps serving.`
+    );
+  } else {
+    console.error("[Server] Failed to start:", err.message);
+  }
+  process.exit(1);
 });

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import api from "../../services/api.js";
 import CategoryAttraction from "./CategoryAttraction.jsx";
+import UniqueCustomerFunnel from "./intel/UniqueCustomerFunnel.jsx";
 import { formatINR, formatNumber } from "../../utils/format.js";
 import { C, SERIES, chartAxis, chartGrid, chartTooltip, chartLegend } from "../../utils/theme.js";
 
@@ -30,7 +31,7 @@ const CHECKOUT_ROWS = [
 
 export default function AdminAnalytics() {
   const [analytics, setAnalytics] = useState(null);
-  const [funnel, setFunnel] = useState([]);
+  const [attraction, setAttraction] = useState(null);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +43,11 @@ export default function AdminAnalytics() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-    api.get("/admin/journey").then(({ data }) => setFunnel(data.funnel || [])).catch(() => {});
+    // Unique-customer figures, kept separate from the event summary above. The
+    // category table and the funnel both need people rather than counts, and
+    // deriving them from behaviorSummary would reintroduce the exact confusion
+    // this page exists to remove.
+    api.get("/admin/attraction?limit=1").then(({ data }) => setAttraction(data)).catch(() => {});
   }, []);
 
   if (loading) {
@@ -101,7 +106,6 @@ export default function AdminAnalytics() {
     success: "bg-success-soft text-success",
   };
 
-  const funnelMax = Math.max(1, ...funnel.map((f) => f.count));
   const summary = analytics.behaviorSummary || [];
   const summaryMax = Math.max(1, ...summary.map((x) => x.value));
   const findRow = (key) => summary.find((x) => x.key === key)?.value || 0;
@@ -201,36 +205,30 @@ export default function AdminAnalytics() {
               </div>
             </section>
 
-            <section className="panel">
-              <div className="panel-head">
-                <h2 className="panel-title">Journey funnel</h2>
-              </div>
-              <div className="panel-body space-y-3">
-                {funnel.length === 0 ? (
+            {/* Was "Journey funnel", a bar per stage sized against the largest
+                stage. Two problems: the numbers were raw events, so a customer who
+                viewed thirty listings counted thirty times, and normalising by the
+                largest stage made the widest bar mean "biggest stage" rather than
+                "everyone who entered". Replaced by the distinct-customer funnel,
+                which measures every stage against everyone attracted. */}
+            {attraction?.funnel ? (
+              <UniqueCustomerFunnel
+                funnel={attraction.funnel}
+                title="Customer funnel"
+                sub="Distinct customers at each stage, measured against everyone attracted"
+              />
+            ) : (
+              <section className="panel">
+                <div className="panel-head">
+                  <h2 className="panel-title">Customer funnel</h2>
+                </div>
+                <div className="panel-body">
                   <p className="text-sm text-muted-soft py-6 text-center">
-                    Run the app to start collecting journey events
+                    Run the app to start collecting journey events. The event table above is unaffected.
                   </p>
-                ) : (
-                  funnel.map((f) => (
-                    <div key={f.stage} className="flex items-center gap-3">
-                      <span className="w-28 text-2xs font-bold uppercase tracking-[0.08em] text-muted flex-none truncate">
-                        {f.stage}
-                      </span>
-                      <div className="flex-1 h-7 bg-sunken rounded-lg overflow-hidden">
-                        <div
-                          className="h-full rounded-lg bg-primary flex items-center justify-end px-2 transition-all duration-500"
-                          style={{ width: `${Math.max(6, (f.count / funnelMax) * 100)}%` }}
-                        >
-                          <span className="text-2xs font-extrabold text-white tabular">
-                            {formatNumber(f.count)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
+                </div>
+              </section>
+            )}
 
             <section className="panel">
               <div className="panel-head">
@@ -293,7 +291,10 @@ export default function AdminAnalytics() {
               </p>
             </div>
             <div className="panel-body">
-              <CategoryAttraction rows={analytics.categoryAttraction} />
+              <CategoryAttraction
+                rows={analytics.categoryAttraction}
+                customerRows={attraction?.categories}
+              />
             </div>
           </section>
 

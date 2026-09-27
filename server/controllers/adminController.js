@@ -5,6 +5,13 @@ import {
 } from "../models/index.js";
 import { getLatestCompleteClusterRun } from "./mlController.js";
 import { getCategoryAttraction } from "../services/categoryAttraction.js";
+import { getProductIntelligenceDetail } from "../services/productIntelligence.js";
+import { getCustomerAttraction } from "../services/customerAttraction.js";
+import {
+  getAttractionAnalytics,
+  getSalesInsights,
+  getSellerIntelligence,
+} from "../services/marketplaceIntelligence.js";
 import {
   applyModeration,
   countProductReferences,
@@ -223,6 +230,35 @@ export const getCustomerDetail = async (req, res) => {
 };
 
 /**
+ * GET /api/admin/customers/:id/attraction
+ *
+ * Which categories and listings is this one customer drawn to? Scored from their
+ * own recorded behaviour, so the shares describe this customer and are not a
+ * slice of some overall ranking.
+ *
+ * A separate endpoint from `getCustomerDetail` on purpose: the detail page
+ * already answers "who is this customer" and answers it in a single round trip,
+ * while this is an expensive behavioural aggregation. Folding it in would make
+ * every customer page load scan and join the whole event log, and a customer
+ * with no activity would still cost the same as a power shopper's page. The
+ * client loads it alongside the detail, and it carries its own loading and
+ * no-data states.
+ */
+export const getCustomerAttractionAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid customer id" });
+    }
+    const attraction = await getCustomerAttraction(id);
+    if (!attraction) return res.status(404).json({ message: "Customer not found" });
+    res.json(attraction);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
  * GET /api/admin/products
  *
  * The listings console's data source. Two things changed from the old read-only
@@ -356,7 +392,7 @@ export const updateProductStatusAdmin = async (req, res) => {
         : `"${product.title}" was already ${status}`,
     });
   } catch (err) {
-    res.status(err.statusCode || 500).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -462,6 +498,34 @@ export const getOrdersAdmin = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/admin/products/:productId/intelligence
+ *
+ * The product-level workspace, and the counterpart to the catalogue rankings
+ * above. Those answer "which listings are hot" from denormalised counters; this
+ * answers "what is actually happening around *this* listing" from the event log,
+ * orders, offers and the newest segmentation run - in a single response, because
+ * the panels have to agree with each other and eleven independent requests would
+ * let them disagree.
+ *
+ * The aggregation itself lives in services/productIntelligence.js. The controller
+ * only distinguishes a malformed id from a missing listing, so a client never has
+ * to guess which of the two it got.
+ */
+export const getProductIntelligenceDetailAdmin = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    if (!mongoose.isValidObjectId(productId)) {
+      return res.status(400).json({ message: "Invalid listing id" });
+    }
+    const intelligence = await getProductIntelligenceDetail(productId);
+    if (!intelligence) return res.status(404).json({ message: "Listing not found" });
+    res.json(intelligence);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export const getProductIntelligence = async (req, res) => {
   try {
     const base = { status: { $ne: "removed" } };
@@ -505,9 +569,13 @@ export const getProductIntelligence = async (req, res) => {
                   { case: { $eq: ["$price", "$originalPrice"] }, then: "At list price (0%)" },
                   { case: { $lt: [{ $multiply: [{ $divide: [{ $subtract: ["$originalPrice", "$price"] }, "$originalPrice"] }, 100] }, 15] }, then: "Slight discount (<15%)" },
                   { case: { $lt: [{ $multiply: [{ $divide: [{ $subtract: ["$originalPrice", "$price"] }, "$originalPrice"] }, 100] }, 35] }, then: "Good discount (15-35%)" },
-                  { then: "Deep discount (>35%)" },
                 ],
-                default: "At list price (0%)",
+                // MongoDB requires every entry in `branches` to carry a `case`,
+                // so the catch-all band has to be expressed as the default
+                // rather than as a fourth caseless branch. The caseless branch
+                // made this whole aggregation fail to parse, which took the
+                // entire catalogue payload down with it.
+                default: "Deep discount (>35%)",
               },
             },
             views: 1,
@@ -980,3 +1048,61 @@ export const getClusteringVisualization = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+
+/* -------------------------------------------------------------------------- */
+/* Marketplace intelligence: catalogue-level attraction, sales, sellers       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * GET /api/admin/attraction
+ *
+ * Which categories and listings reach the most distinct customers, and what
+ * those customers did next. Counts people rather than events, so the ranking
+ * answers "how many real shoppers care" instead of "which page generated the
+ * most clicks" - see services/marketplaceIntelligence.js for why that
+ * distinction is load-bearing.
+ */
+export const getAttractionAnalyticsAdmin = async (req, res) => {
+  try {
+    const { limit } = pagination(req.query, { defaultLimit: 12, maxLimit: 50 });
+    res.json(await getAttractionAnalytics({ limit }));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /api/admin/sales-insights
+ *
+ * Revenue, units, trends, and the demand-versus-sales split that makes the page
+ * worth opening: listings real customers engaged with that never sold.
+ */
+export const getSalesInsightsAdmin = async (req, res) => {
+  try {
+    const { limit } = pagination(req.query, { defaultLimit: 10, maxLimit: 50 });
+    res.json(await getSalesInsights({ limit }));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /api/admin/seller-intelligence
+ *
+ * Seller performance over the whole set in three aggregate passes. `sort` is
+ * whitelisted rather than interpolated, and an unrecognised value falls back to
+ * revenue instead of throwing.
+ */
+export const getSellerIntelligenceAdmin = async (req, res) => {
+  try {
+    const { limit } = pagination(req.query, { defaultLimit: 15, maxLimit: 100 });
+    const sort = ["revenue", "units", "listings", "rating", "buyers", "sellThrough"].includes(req.query.sort)
+      ? req.query.sort
+      : "revenue";
+    res.json(await getSellerIntelligence({ limit, sort, search: req.query.search || "" }));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
