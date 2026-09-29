@@ -1,17 +1,26 @@
 """
 Smart Second-Hand Marketplace -- ML Service
-Customer Segmentation & Persona Discovery using Hybrid Clustering Methods
+Customer Segmentation & Persona Discovery
 
-FastAPI service for the Cluster Lab. It is deliberately stateless: the Node.js
-backend owns MongoDB, performs the customer-level feature aggregation, and posts
-a prepared feature matrix here. Everything that constitutes "machine learning"
-happens in this service and nowhere else.
+FastAPI service for customer segmentation. It is deliberately stateless: the
+Node.js backend owns MongoDB, performs the customer-level feature aggregation,
+and posts a prepared feature matrix here. Everything that constitutes "machine
+learning" happens in this service and nowhere else.
+
+The product's segmentation story is deliberately narrow:
+
+    behaviour events -> features -> scaling -> K-Means -> clusters -> personas
+
+K-Means is the algorithm whose result the product reports. Agglomerative,
+DBSCAN and the consensus ("hybrid") partition are still computed so the
+comparison tooling has something to compare against, but they never supply the
+clusters, profiles or personas the admin sees.
 
 Endpoints
 ---------
 GET  /health                      liveness probe
 POST /dataset/summary             describe the feature matrix before clustering
-POST /cluster                     full pipeline (K-Means + Agglomerative + DBSCAN + Hybrid)
+POST /cluster                     full pipeline (K-Means primary; others for comparison)
 POST /cluster/kmeans              K-Means only
 POST /cluster/agglomerative       Agglomerative only
 POST /cluster/dbscan              DBSCAN only
@@ -29,6 +38,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
+
+# The one algorithm whose partition is reported as "the" segmentation. Personas
+# and cluster profiles are computed from its labels. Kept as a constant so no
+# call site can quietly re-point the primary result at a different algorithm.
+PRIMARY_ALGORITHM = "kmeans"
 
 from app.clustering.engine import (
     CONSENSUS_WEIGHTS,
@@ -431,8 +445,12 @@ def run_hybrid_endpoint(request: HybridRequest) -> Dict[str, Any]:
 @app.post("/cluster")
 def run_clustering(request: FullPipelineRequest) -> Dict[str, Any]:
     """
-    The full pipeline: K-Means, Agglomerative, DBSCAN, consensus hybrid,
-    evaluation, PCA, cluster profiling and persona interpretation.
+    The full pipeline. K-Means is the primary segmentation: its labels drive the
+    cluster profiles, the personas and ``selectedModel``.
+
+    Agglomerative, DBSCAN and the consensus partition are also computed and
+    returned so they can be compared against the K-Means result, but they are
+    reported under their own names and never substituted for it.
     """
     started = time.perf_counter()
     try:
@@ -457,8 +475,19 @@ def run_clustering(request: FullPipelineRequest) -> Dict[str, Any]:
             kmeans_result, agglomerative_result, dbscan_result, hybrid_result, user_ids
         )
         pca_data = compute_pca(scaled, user_ids)
-        profiles = profile_clusters(raw_df, hybrid_result["labels"], user_ids)
+        # K-Means is the primary segmentation for this product. Cluster profiles
+        # and personas are therefore derived from the K-Means partition, not from
+        # the consensus. The other algorithms are still computed and returned in
+        # full so an operator can compare them, but nothing the admin sees as
+        # "the segmentation" is a blend - it is K-Means, and it is labelled
+        # K-Means everywhere.
+        profiles = profile_clusters(raw_df, kmeans_result["labels"], user_ids)
         personas = assign_personas(profiles)
+        # Same profiles and personas computed on the consensus partition, so the
+        # comparison pages can still show what a multi-algorithm blend would have
+        # produced. Never substituted for the K-Means result above.
+        consensus_profiles = profile_clusters(raw_df, hybrid_result["labels"], user_ids)
+        consensus_personas = assign_personas(consensus_profiles)
         summary = dataset_summary(raw_df, user_ids)
     except HTTPException:
         raise
@@ -510,8 +539,19 @@ def run_clustering(request: FullPipelineRequest) -> Dict[str, Any]:
         "optimalK": int(k),
         "suggestedK": int(suggested_k),
         "totalCustomers": n_samples,
-        "selectedModel": "hybrid",
-        "noiseCount": int(hybrid_result["noiseCount"]),
+        # K-Means is the segmentation this product reports on. `clusterProfiles`
+        # and `personas` above come from `kmeans.labels` and nothing else.
+        "selectedModel": PRIMARY_ALGORITHM,
+        "primaryAlgorithm": PRIMARY_ALGORITHM,
+        "primaryLabel": "K-Means",
+        "numClusters": int(kmeans_result["numClusters"]),
+        "clusterSizes": kmeans_result["clusterSizes"],
+        "noiseCount": int(kmeans_result["noiseCount"]),
+        # Secondary, comparison-only. Named so no consumer can mistake a
+        # consensus partition for the K-Means one it sits beside.
+        "secondaryModels": ["agglomerative", "dbscan", "hybrid"],
+        "consensusPersonas": consensus_personas,
+        "consensusClusterProfiles": {str(cid): profile for cid, profile in consensus_profiles.items()},
         "consensusWeights": dict(CONSENSUS_WEIGHTS),
     }
     return _envelope(results, int((time.perf_counter() - started) * 1000), warnings)

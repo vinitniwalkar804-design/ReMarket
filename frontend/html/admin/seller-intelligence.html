@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="ReMarket — trusted second-hand marketplace." />
+  <title>ReMarket Cloud · Seller Intelligence</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <link rel="stylesheet" href="../../css/components.css" />
+  <link rel="stylesheet" href="../../css/pages.css" />
+  <link rel="stylesheet" href="../../css/admin.css" />
+  <script type="module" src="../../js/admin/seller-intelligence.js"></script>
+</head>
+<body>
+<div class="min-h-screen bg-canvas flex">
+  <aside data-admin-aside class="fixed inset-y-0 left-0 z-50 w-[264px] bg-ink-900 text-white flex flex-col transition-transform duration-200 ease-smooth lg:translate-x-0 lg:static lg:inset-auto lg:z-auto">
+    <div class="px-5 h-[68px] flex items-center border-b border-white/[0.07] flex-none">
+      <a href="dashboard.html" class="flex items-center gap-3 group">
+        <span class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-[15px] font-extrabold shadow-glow-primary transition-transform duration-200 group-hover:-translate-y-0.5">R</span>
+        <span class="leading-tight">
+          <span class="block font-display font-extrabold text-[13px] tracking-tight">ReMarket Cloud</span>
+          <span class="block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">Command Center</span>
+        </span>
+      </a>
+      <button type="button" aria-label="Close sidebar" class="ml-auto lg:hidden text-white/50 hover:text-white" data-admin-close><span data-icon="X" data-icon-size="18"></span></button>
+    </div>
+    <nav class="px-3 py-4 space-y-5 overflow-y-auto flex-1" data-admin-nav></nav>
+    <div class="p-3 border-t border-white/[0.07] space-y-1 flex-none" data-admin-rail></div>
+  </aside>
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="sticky top-0 z-40 h-[68px] bg-white/85 backdrop-blur-xl border-b border-line px-4 lg:px-8 flex items-center gap-3">
+      <button type="button" aria-label="Open sidebar" class="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-muted hover:bg-sunken" data-admin-open><span data-icon="Menu" data-icon-size="20"></span></button>
+      <div class="flex items-center gap-2 text-xs font-semibold text-muted min-w-0">
+        <span class="hidden sm:inline">ReMarket Cloud</span>
+        <span class="hidden sm:block text-muted-soft flex-none"><span data-icon="ChevronRight" data-icon-size="12"></span></span>
+        <span class="text-ink-900 truncate" data-admin-title></span>
+      </div>
+      <span class="badge badge-primary hidden md:inline-flex ml-1"><span data-icon="ShieldCheck" data-icon-size="11"></span> Admin</span>
+      <div class="flex-1"></div>
+      <a href="../index.html" class="btn-quiet hidden sm:inline-flex text-xs" title="Open storefront"><span data-icon="Sparkles" data-icon-size="15"></span> Storefront</a>
+      <span class="w-px h-7 bg-line hidden sm:block"></span>
+      <div class="flex items-center gap-2.5">
+        <div class="text-right hidden sm:block leading-tight">
+          <div class="text-[13px] font-bold text-ink-900" data-admin-name></div>
+          <div class="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-soft">Administrator</div>
+        </div>
+        <span class="avatar w-9 h-9 text-[13px]" data-admin-avatar>A</span>
+      </div>
+    </header>
+    <main id="page" class="flex-1"></main>
+  </div>
+  <div class="lg:hidden" data-admin-scrim></div>
+</div>
+</body>
+</html>

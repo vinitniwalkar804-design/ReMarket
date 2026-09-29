@@ -8,6 +8,11 @@ dist/
 build/
 .DS_Store
 *.log
+logs/*.log
+logs/live-shots/
 
-# Server uploads
-server/uploads/
+# Backend uploads (seller-uploaded product images)
+backend/uploads/
+
+# Local database dump
+mongodb-backup/

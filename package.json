@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install:all": "npm install --prefix server && npm install --prefix client && pip install -r ml-service/requirements.txt",
-    "dev:server": "npm run dev --prefix server",
-    "dev:client": "npm run dev --prefix client",
+    "install:all": "npm install --prefix backend && npm install --prefix frontend && pip install -r ml-service/requirements.txt",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
     "dev:ml": "cd ml-service && uvicorn app.main:app --reload --port 8000",
-    "seed": "npm run seed --prefix server",
+    "dev:server": "npm run dev:backend",
+    "dev:client": "npm run dev:frontend",
+    "seed": "npm run seed --prefix backend",
+    "build": "npm run build --prefix frontend",
     "setup": "npm run install:all && npm run seed"
   }
 }

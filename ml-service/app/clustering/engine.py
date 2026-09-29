@@ -1867,9 +1867,17 @@ def methodology_document(
     hybrid: Dict[str, Any],
     warnings_: List[str],
 ) -> Dict[str, Any]:
-    """The viva-ready explanation of what the pipeline actually did."""
+    """
+    A plain account of what the pipeline actually did.
+
+    The primary result is K-Means, so that is what this document describes. The
+    comparison algorithms are listed because they were genuinely fitted, and
+    their agreement with K-Means is reported, but nothing here implies the
+    reported segmentation is a blend of them.
+    """
     return {
-        "name": "Hybrid consensus clustering (ensemble)",
+        "name": "K-Means customer segmentation",
+        "primaryAlgorithm": "kmeans",
         "featureSchemaVersion": FEATURE_SCHEMA_VERSION,
         "featureCount": len(FEATURE_COLUMNS),
         "features": list(FEATURE_COLUMNS),
@@ -1881,8 +1889,13 @@ def methodology_document(
         "preprocessing": preprocessing,
         "scaling": scaling,
         "parameters": params,
-        "hybrid": {
-            "reason": hybrid.get("consensusKReason"),
+        "comparison": {
+            "note": (
+                "Agglomerative and DBSCAN were also fitted on the same scaled matrix, and a "
+                "consensus partition was built from their co-association. They are recorded for "
+                "comparison only; the reported clusters and personas come from K-Means."
+            ),
+            "consensusReason": hybrid.get("consensusKReason"),
             "weights": hybrid.get("parameters", {}).get("consensusWeights"),
             "linkage": hybrid.get("parameters", {}).get("consensusLinkage"),
             "meanAgreement": hybrid.get("meanAgreement"),
@@ -1898,13 +1911,13 @@ def methodology_document(
                 scaling.get("scalerClass", "StandardScaler")
             ),
             "K is chosen from a published sweep of silhouette, Davies-Bouldin, Calinski-Harabasz and inertia.",
-            "K-Means, Agglomerative and DBSCAN are each fitted on the same scaled matrix.",
-            "Each algorithm's internal validation indices are computed, with reasons where undefined.",
-            "A pairwise co-association consensus is built and re-clustered with average linkage.",
-            "DBSCAN noise is preserved as noise and excluded from the validation indices.",
-            "PCA projects the customers to 2D for the cluster map (visualisation only).",
+            "K-Means is fitted on the scaled matrix; this partition is the reported segmentation.",
             "Each cluster is profiled against the whole population in standard deviations.",
             "Persona labels are assigned from measured evidence using an optimal one-to-one matching.",
+            "Agglomerative and DBSCAN are fitted on the same matrix and a co-association consensus is built, "
+            "purely so the K-Means result can be compared against alternatives. DBSCAN noise stays noise and is "
+            "excluded from that comparison's validation indices.",
+            "PCA projects the customers to 2D for the cluster map (visualisation only).",
         ],
         "warnings": warnings_,
     }

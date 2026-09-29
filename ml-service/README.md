@@ -9,6 +9,22 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+## Layout
+
+| Path | Purpose |
+|---|---|
+| `app/main.py` | FastAPI app, request/response models, endpoint definitions |
+| `app/clustering/engine.py` | The whole pipeline: preprocessing, scaling, K-Means, Agglomerative, DBSCAN, consensus hybrid, PCA, persona naming |
+| `app/clustering/feature_schema.py` | The 46-feature schema the backend must match, grouped for the admin UI |
+| `tests/synthetic_data.py` | Generates customers with four planted behavioural archetypes |
+| `tests/clustering_smoke_test.py` | Engine-level check: does the pipeline recover the planted structure? |
+| `tests/api_smoke_test.py` | API-level check through the FastAPI test client, including validation failures and determinism |
+
+```bash
+python tests/clustering_smoke_test.py   # engine correctness
+python tests/api_smoke_test.py           # endpoint behaviour
+```
+
 ## Endpoints
 
 | Method | Path | Purpose |

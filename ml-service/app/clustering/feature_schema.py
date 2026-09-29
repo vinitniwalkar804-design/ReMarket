@@ -549,7 +549,7 @@ GROUP_BY_KEY: Dict[str, Dict[str, Any]] = {group["key"]: group for group in GROU
 #
 # This is the reference list: every category that exists in the marketplace must
 # appear in exactly one axis. It must stay in step with CATEGORY_INTEREST_MAP in
-# server/services/clusterFeatures.js, which is the case-insensitive normaliser
+# backend/services/clusterFeatures.js, which is the case-insensitive normaliser
 # applied to stored event categories. When they disagree, interactions in the
 # category present in one map and absent from the other are silently excluded
 # from the feature vector, so the Node side reports any category it could not map
