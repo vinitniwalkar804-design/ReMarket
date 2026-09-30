@@ -6,6 +6,13 @@
  * Paginated table of every listing across all sellers: API returns `{ products,
  * total }` for `page`/`limit`, mirrored one-for-one. No local filtering — this
  * table is strictly the read-out of the stored catalogue.
+ *
+ * The row actions are the shared admin management desk from
+ * `./product-actions.js` — the same inspect panel, the same confirmation dialog
+ * and the same three endpoints the Listings page drives. A catalogue table whose
+ * job is "is this listing wanted or not" leads with Inspect and Delete; the
+ * full status lifecycle stays where it already lives, one click inside the
+ * inspect panel, so nothing is duplicated and no transition is offered twice.
  */
 import { h, mount } from "../../dom.js";
 import { icon } from "../../icons.js";
@@ -14,6 +21,7 @@ import { SkeletonRow } from "../../components/loading.js";
 import { imageProps } from "../../utils/images.js";
 import { formatINR } from "../../utils/format.js";
 import { listingTone } from "../../utils/theme.js";
+import { createProductActions } from "./product-actions.js";
 
 const PAGE_SIZE = 15;
 
@@ -24,6 +32,10 @@ export default function AdminProducts() {
   const root = h("div", { className: "animate-fade-in space-y-5" });
   const contentHost = h("div");
   root.appendChild(contentHost);
+
+  /** Inspect panel + confirmation dialog, shared with the Listings table. */
+  const desk = createProductActions({ isAlive: () => ensureAlive(), onChanged: () => load() });
+  for (const host of desk.hosts) root.appendChild(host);
 
   function ensureAlive() {
     if (root.isConnected) return true;
@@ -151,7 +163,8 @@ export default function AdminProducts() {
                   h("th", null, "Seller"),
                   h("th", { className: "th-num" }, "Price"),
                   h("th", { className: "th-num" }, "Views"),
-                  h("th", null, "Status")
+                  h("th", null, "Status"),
+                  h("th", { className: "text-right" }, "Actions")
                 )
               ),
               h(
@@ -183,7 +196,8 @@ export default function AdminProducts() {
                       "td",
                       null,
                       h("span", { className: `badge capitalize border ${listingTone(p.status)}` }, p.status)
-                    )
+                    ),
+                    desk.actionsCell(p, { transition: false, remove: true })
                   )
                 )
               )

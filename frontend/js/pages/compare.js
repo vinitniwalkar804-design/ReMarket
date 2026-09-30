@@ -710,8 +710,10 @@ export default function Compare() {
         h("caption", { className: "sr-only" }, `Side-by-side comparison of ${s.products.length} selected products`),
         h(
           "thead",
+          null,
           h(
             "tr",
+            null,
             h(
               "th",
               {
